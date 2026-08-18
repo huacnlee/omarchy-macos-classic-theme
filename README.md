@@ -1,6 +1,6 @@
 # macOS Classic for Omarchy
 
-An Omarchy theme based on Jason Lee's macOS Classic palette — near-black surfaces, cool gray text, and bright blue accents. Includes application colors and a matching background.
+An Omarchy theme based on Jason Lee's macOS Classic palette — near-black surfaces, cool gray text, and bright blue accents. Includes application colors and a matching blank desktop.
 
 <img width="3840" height="2160" alt="screenshot-2026-08-16_16-53-45" src="https://github.com/user-attachments/assets/828e801b-2a15-4220-ad6d-b46f565a65d6" />
 
@@ -25,7 +25,18 @@ cd omarchy-macos-classic-theme
 omarchy theme set macos-classic-light
 ```
 
-`install.sh` installs both variants and activates neither.
+`install.sh` installs both variants and applies `macos-classic`; pass `--no-activate` to install without switching themes.
+
+## Slack
+
+Each variant includes a Slack custom theme that you can import manually:
+
+1. Open your profile menu in Slack and select **Preferences**.
+2. Open **Appearance**, select **Custom theme**, then choose **Import theme**.
+3. Paste the contents of [`slack.theme`](slack.theme) for dark mode or
+   [`macos-classic-light/slack.theme`](macos-classic-light/slack.theme) for light mode, then apply it.
+
+Slack stores custom themes per user rather than reading them from Omarchy, so changing Omarchy themes does not switch Slack automatically.
 
 ## Credits
 

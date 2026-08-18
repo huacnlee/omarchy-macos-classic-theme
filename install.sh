@@ -18,14 +18,16 @@ dark_files=(
   preview.png
   preview-unlock.png
   shell.hyprland.toml
+  slack.theme
   unlock.png
   vscode.json
   zed.json
 )
 light_name=macos-classic-light
+activate=1
 
 usage() {
-  echo "Usage: ./install.sh [--destination DIR]"
+  echo "Usage: ./install.sh [--destination DIR] [--no-activate]"
 }
 
 while (($#)); do
@@ -38,6 +40,10 @@ while (($#)); do
       fi
       destination=$2
       shift 2
+      ;;
+    --no-activate)
+      activate=0
+      shift
       ;;
     -h|--help)
       usage
@@ -70,5 +76,11 @@ else
   echo "Monaco is not installed. Install a licensed copy, then run: omarchy font set Monaco"
 fi
 
-echo "Choose a variant with: omarchy theme set macos-classic"
-echo "Or:                    omarchy theme set macos-classic-light"
+if ((activate)) && command -v omarchy >/dev/null 2>&1; then
+  omarchy theme set "$dark_name"
+  echo "Applied $dark_name"
+  echo "Switch to the light variant with: omarchy theme set $light_name"
+else
+  echo "Choose a variant with: omarchy theme set $dark_name"
+  echo "Or:                    omarchy theme set $light_name"
+fi

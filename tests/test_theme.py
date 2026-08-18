@@ -42,6 +42,7 @@ THEME_FILES = {
     "preview.png",
     "preview-unlock.png",
     "shell.hyprland.toml",
+    "slack.theme",
     "unlock.png",
     "vscode.json",
     "zed.json",
@@ -236,6 +237,7 @@ class IntegrationTests(unittest.TestCase):
         "vscode.json",
         "zed.json",
         "shell.hyprland.toml",
+        "slack.theme",
     }
 
     def test_all_integration_files_exist(self):
@@ -250,6 +252,18 @@ class IntegrationTests(unittest.TestCase):
                 value = (theme_dir(name) /"chromium.theme").read_text().strip()
                 self.assertEqual(expected["chromium"], value)
                 self.assertTrue(all(0 <= int(channel) <= 255 for channel in value.split(",")))
+
+    def test_slack_legacy_themes_are_importable_and_readable(self):
+        for name in VARIANTS:
+            with self.subTest(name=name):
+                colors = (theme_dir(name) / "slack.theme").read_text().strip().split(",")
+                self.assertEqual(8, len(colors))
+                self.assertTrue(all(re.fullmatch(r"#[0-9A-Fa-f]{6}", color) for color in colors))
+
+                column_background, _, active_item, active_item_text, _, text, _, badge = colors
+                self.assertGreaterEqual(contrast_ratio(text, column_background), 4.5)
+                self.assertGreaterEqual(contrast_ratio(active_item_text, active_item), 4.5)
+                self.assertGreaterEqual(contrast_ratio("#FFFFFF", badge), 4.5)
 
     def test_hyprland_active_border_is_quieter_than_accent(self):
         for name in VARIANTS:
@@ -458,7 +472,7 @@ class AssetTests(unittest.TestCase):
         self.assertEqual(b"IHDR", data[12:16])
         return struct.unpack(">II", data[16:24])
 
-    def png_corner_rgb(self, path, bottom=False):
+    def png_scanlines(self, path):
         data = path.read_bytes()
         offset = 8
         compressed = []
@@ -472,9 +486,20 @@ class AssetTests(unittest.TestCase):
         pixels = zlib.decompress(b"".join(compressed))
         width, height = self.png_dimensions(path)
         row_size = 1 + width * 3
-        row = pixels[(height - 1) * row_size :] if bottom else pixels
+        return [pixels[index * row_size : (index + 1) * row_size] for index in range(height)]
+
+    def png_corner_rgb(self, path, bottom=False):
+        rows = self.png_scanlines(path)
+        row = rows[-1] if bottom else rows[0]
         self.assertEqual(0, row[0], "Generated PNG must use filter type 0")
         return tuple(row[1:4])
+
+    def png_pixels(self, path):
+        for row in self.png_scanlines(path):
+            self.assertEqual(0, row[0], "Generated PNG must use filter type 0")
+            body = row[1:]
+            for index in range(0, len(body), 3):
+                yield tuple(body[index : index + 3])
 
     def test_assets_have_expected_png_dimensions(self):
         for name in VARIANTS:
@@ -488,19 +513,19 @@ class AssetTests(unittest.TestCase):
                 with self.subTest(path=path):
                     self.assertEqual(dimensions, self.png_dimensions(path))
 
-    def test_wallpaper_starts_with_neutral_surface_not_blue_accent(self):
+    def test_wallpaper_is_a_flat_fill_with_no_artwork(self):
+        # There is no wallpaper image on purpose: every pixel is the same color,
+        # so the desktop is blank rather than a picture.
         expected = {
-            "macos-classic-light": (255, 255, 255),
+            "macos-classic-light": (216, 216, 216),
             "macos-classic-dark": (19, 19, 19),
         }
-        for name, top_rgb in expected.items():
+        for name, fill in expected.items():
             with self.subTest(name=name):
-                path = theme_dir(name) /"backgrounds" / f"{name}.png"
-                self.assertEqual(top_rgb, self.png_corner_rgb(path))
-
-    def test_light_wallpaper_ends_on_the_primary_surface(self):
-        path = theme_dir("macos-classic-light") / "backgrounds/macos-classic-light.png"
-        self.assertEqual((249, 249, 249), self.png_corner_rgb(path, bottom=True))
+                path = theme_dir(name) / "backgrounds" / f"{name}.png"
+                self.assertEqual(fill, self.png_corner_rgb(path))
+                self.assertEqual(fill, self.png_corner_rgb(path, bottom=True))
+                self.assertEqual({fill}, set(self.png_pixels(path)))
 
     def test_dark_assets_use_the_source_editor_background(self):
         theme = theme_dir("macos-classic-dark")
@@ -515,34 +540,66 @@ class AssetTests(unittest.TestCase):
                 self.assertEqual((19, 19, 19), self.png_corner_rgb(path))
                 self.assertEqual((19, 19, 19), self.png_corner_rgb(path, bottom=True))
 
+    def test_light_wallpaper_sits_below_every_palette_surface(self):
+        # The desktop is darker than the editor background so windows read as
+        # raised off it instead of melting into it.
+        name = "macos-classic-light"
+        path = theme_dir(name) / "backgrounds" / f"{name}.png"
+        fill = "#%02X%02X%02X" % self.png_corner_rgb(path)
+        palette = load_palette(name)
+        for key in ("background", "dark_background", "darker_background", "lighter_background"):
+            self.assertLess(
+                relative_luminance(fill),
+                relative_luminance(palette[key]),
+                f"{name} wallpaper must be darker than {key}",
+            )
+
 
 class InstallerTests(unittest.TestCase):
-    def run_installer(self, *arguments, env=None):
+    def run_installer(self, *arguments, env=None, activate=False):
+        # Activation is the installer's default, so every test that is not about
+        # activation opts out: otherwise the suite would switch the theme of the
+        # machine it runs on.
+        prefix = () if activate else ("--no-activate",)
         return subprocess.run(
-            ["bash", ROOT / "install.sh", *map(str, arguments)],
+            ["bash", ROOT / "install.sh", *prefix, *map(str, arguments)],
             cwd=ROOT,
             capture_output=True,
             text=True,
             env=env,
         )
 
-    def test_installer_copies_both_themes_without_activating_one(self):
+    def stub_omarchy(self, temporary):
+        bin_dir = Path(temporary) / "bin"
+        bin_dir.mkdir()
+        log = Path(temporary) / "omarchy-invoked"
+        omarchy = bin_dir / "omarchy"
+        omarchy.write_text(f'#!/usr/bin/env bash\necho "$@" >> {log}\n')
+        omarchy.chmod(0o755)
+        return log, os.environ | {"PATH": f"{bin_dir}:{os.environ['PATH']}"}
+
+    def test_installer_applies_the_dark_variant_by_default(self):
         with tempfile.TemporaryDirectory() as temporary:
             destination = Path(temporary) / "themes"
-            bin_dir = Path(temporary) / "bin"
-            bin_dir.mkdir()
-            marker = Path(temporary) / "omarchy-invoked"
-            omarchy = bin_dir / "omarchy"
-            omarchy.write_text(f"#!/usr/bin/env bash\ntouch {marker}\n")
-            omarchy.chmod(0o755)
-            env = os.environ | {"PATH": f"{bin_dir}:{os.environ['PATH']}"}
+            log, env = self.stub_omarchy(temporary)
+
+            result = self.run_installer("--destination", destination, env=env, activate=True)
+            self.assertEqual(0, result.returncode, result.stderr)
+            for installed in INSTALLED_NAMES.values():
+                self.assertTrue((destination / installed / "colors.toml").is_file())
+            self.assertEqual("theme set macos-classic", log.read_text().strip())
+            self.assertIn("Monaco", result.stdout)
+
+    def test_no_activate_installs_without_switching_theme(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "themes"
+            log, env = self.stub_omarchy(temporary)
 
             result = self.run_installer("--destination", destination, env=env)
             self.assertEqual(0, result.returncode, result.stderr)
             for installed in INSTALLED_NAMES.values():
                 self.assertTrue((destination / installed / "colors.toml").is_file())
-            self.assertFalse(marker.exists())
-            self.assertIn("Monaco", result.stdout)
+            self.assertFalse(log.exists())
 
     def test_installer_copies_only_theme_files_out_of_the_repository_root(self):
         # The dark variant shares its directory with the README, installer, and
