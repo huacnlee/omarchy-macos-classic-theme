@@ -1,3 +1,3 @@
-active-border = "#7A7A7A"
-active-border-foreground = "#8F8F8F"
-inactive-border = "#595959"
+active-border = "#595959"
+active-border-foreground = "#595959"
+inactive-border = "#202020"

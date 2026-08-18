@@ -1,7 +1,5 @@
-local active_border_color = "rgb(7a7a7a)"
--- Full opacity on purpose: the shared default is rgba(595959aa), and that alpha
--- blends the inactive frame down into the near-black surface until it vanishes.
-local inactive_border_color = "rgb(595959)"
+local active_border_color = "rgb(595959)"
+local inactive_border_color = "rgb(202020)"
 
 hl.config({
   general = {

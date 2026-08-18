@@ -19,8 +19,8 @@ THEMES = {
     },
     "macos-classic-dark": {
         "directory": ROOT,
-        "top": "#1A1A1A",
-        "bottom": "#050505",
+        "top": "#131313",
+        "bottom": "#131313",
     },
 }
 
