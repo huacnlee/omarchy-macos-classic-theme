@@ -69,6 +69,12 @@ VARIANTS = {
     },
 }
 
+# Longbridge keys its theme registry by theme name and reads user themes from
+# ~/.longbridge/themes, so the repository carries one file, holding the dark
+# variant only, and the installer lands it on omarchy.json.
+LONGBRIDGE_THEME = "Omarchy System"
+LONGBRIDGE_INSTALLED_NAME = "omarchy.json"
+
 COLOR_KEYS = {
     "mode",
     "accent",
@@ -465,6 +471,100 @@ class IntegrationTests(unittest.TestCase):
                     self.assertEqual(0, result.returncode, result.stderr)
 
 
+class LongbridgeThemeTests(unittest.TestCase):
+    def load(self):
+        return json.loads((ROOT / "longbridge.json").read_text())
+
+    def theme(self):
+        return self.load()["themes"][0]
+
+    def test_the_file_carries_one_dark_theme_named_after_omarchy(self):
+        theme_set = self.load()
+        self.assertEqual(LONGBRIDGE_THEME, theme_set["name"])
+        # Longbridge stores themes in a map keyed by theme name, so two variants
+        # sharing a name would silently drop one. This file ships dark only.
+        self.assertEqual(1, len(theme_set["themes"]))
+        self.assertEqual(LONGBRIDGE_THEME, self.theme()["name"])
+        self.assertEqual("dark", self.theme()["mode"])
+
+    def test_colors_come_from_the_dark_palette(self):
+        palette = load_palette("macos-classic-dark")
+        colors = self.theme()["colors"]
+        expected = {
+            "accent.background": palette["lighter_background"],
+            "accent.foreground": palette["light_foreground"],
+            "background": palette["background"],
+            "foreground": palette["foreground"],
+            "link": palette["blue"],
+            "list.active.border": palette["accent"],
+            "list.even.background": palette["lighter_background"],
+            "muted.background": palette["lighter_background"],
+            "muted.foreground": palette["muted"],
+            "popover.background": palette["dark_background"],
+            "popover.foreground": palette["light_foreground"],
+            "primary.background": palette["accent"],
+            "primary.foreground": palette["bright_foreground"],
+            "ring": palette["accent"],
+            "selection.background": palette["selection"],
+            "tab.active.background": palette["background"],
+            "tab.foreground": palette["dark_foreground"],
+            "tab_bar.background": palette["darker_background"],
+            "title_bar.background": palette["dark_background"],
+            "base.blue": palette["blue"],
+            "base.cyan": palette["cyan"],
+            "base.green": palette["green"],
+            "base.magenta": palette["magenta"],
+            "base.red": palette["red"],
+            "base.yellow": palette["yellow"],
+        }
+        for key, value in expected.items():
+            with self.subTest(key=key):
+                self.assertEqual(value.lower(), colors[key].lower())
+
+    def test_translucent_colors_are_tinted_by_the_surface_they_sit_on(self):
+        palette = load_palette("macos-classic-dark")
+        colors = self.theme()["colors"]
+        self.assertEqual(
+            palette["background"].lower() + "00", colors["scrollbar.background"].lower()
+        )
+        self.assertTrue(
+            colors["list.active.background"].lower().startswith(palette["accent"].lower()),
+            "a selected row is the accent dimmed, not a separate color",
+        )
+
+    def test_every_color_is_a_hex_value(self):
+        for key, value in self.theme()["colors"].items():
+            with self.subTest(key=key):
+                self.assertRegex(value, r"^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$")
+
+    def test_text_stays_readable_on_its_own_surface(self):
+        colors = self.theme()["colors"]
+        pairs = [
+            ("foreground", "background"),
+            ("accent.foreground", "accent.background"),
+            ("popover.foreground", "popover.background"),
+            ("secondary.foreground", "secondary.background"),
+            ("muted.foreground", "muted.background"),
+            ("tab.foreground", "tab_bar.background"),
+        ]
+        for foreground, background in pairs:
+            with self.subTest(foreground=foreground):
+                self.assertGreaterEqual(
+                    contrast_ratio(colors[foreground], colors[background]), 4.5
+                )
+        # The accent pair comes straight from colors.toml, and white-on-blue
+        # lands at 3.7. Buttons are UI components, so 3:1 is the bar they meet.
+        self.assertGreaterEqual(
+            contrast_ratio(colors["primary.foreground"], colors["primary.background"]), 3.0
+        )
+
+    def test_the_theme_is_not_part_of_the_omarchy_theme_itself(self):
+        # Omarchy never reads this file; only install.sh does. Keeping it out of
+        # THEME_FILES keeps it out of ~/.config/omarchy/themes.
+        self.assertNotIn("longbridge.json", THEME_FILES)
+        self.assertFalse((theme_dir("macos-classic-light") / "longbridge.json").exists())
+
+
 class AssetTests(unittest.TestCase):
     def png_dimensions(self, path):
         data = path.read_bytes()
@@ -559,15 +659,17 @@ class InstallerTests(unittest.TestCase):
     def run_installer(self, *arguments, env=None, activate=False):
         # Activation is the installer's default, so every test that is not about
         # activation opts out: otherwise the suite would switch the theme of the
-        # machine it runs on.
+        # machine it runs on. Both destinations default to somewhere under $HOME,
+        # so point HOME at a throwaway directory for the same reason.
         prefix = () if activate else ("--no-activate",)
-        return subprocess.run(
-            ["bash", ROOT / "install.sh", *prefix, *map(str, arguments)],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            env=env,
-        )
+        with tempfile.TemporaryDirectory() as home:
+            return subprocess.run(
+                ["bash", ROOT / "install.sh", *prefix, *map(str, arguments)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                env=(env or os.environ) | {"HOME": home},
+            )
 
     def stub_omarchy(self, temporary):
         bin_dir = Path(temporary) / "bin"
@@ -624,6 +726,41 @@ class InstallerTests(unittest.TestCase):
             self.assertEqual(0, result.returncode, result.stderr)
             for marker in markers:
                 self.assertFalse(marker.exists())
+
+    def test_installer_copies_the_longbridge_theme_where_the_app_reads_it(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "themes"
+            longbridge = Path(temporary) / ".longbridge"
+            longbridge.mkdir()
+
+            result = self.run_installer(
+                "--destination",
+                destination,
+                "--longbridge-destination",
+                longbridge / "themes",
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+
+            installed = longbridge / "themes" / LONGBRIDGE_INSTALLED_NAME
+            self.assertEqual(
+                json.loads((ROOT / "longbridge.json").read_text()),
+                json.loads(installed.read_text()),
+            )
+            self.assertIn("Longbridge", result.stdout)
+
+    def test_installer_leaves_a_machine_without_longbridge_alone(self):
+        # ~/.longbridge appears the first time the app runs. Without it there is
+        # nothing to theme, and the installer must not conjure the directory.
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "themes"
+            longbridge = Path(temporary) / "absent" / "themes"
+
+            result = self.run_installer(
+                "--destination", destination, "--longbridge-destination", longbridge
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertFalse(longbridge.parent.exists())
+            self.assertIn("Longbridge is not set up", result.stdout)
 
     def test_unknown_argument_fails_without_copying(self):
         with tempfile.TemporaryDirectory() as temporary:

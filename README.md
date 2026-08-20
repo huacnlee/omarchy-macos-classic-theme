@@ -38,6 +38,14 @@ Each variant includes a Slack custom theme that you can import manually:
 
 Slack stores custom themes per user rather than reading them from Omarchy, so changing Omarchy themes does not switch Slack automatically.
 
+## Longbridge
+
+[`longbridge.json`](longbridge.json) is the dark palette as a Longbridge desktop theme. `install.sh` copies it to `~/.longbridge/themes/omarchy.json`, and the app hot-reloads its themes, so no restart is needed — pick **Omarchy System** in the theme selector.
+
+Only the dark variant is included. The installed file is named `omarchy.json` rather than after this theme, so any other Omarchy theme shipping one overwrites the same file: the selector keeps a single **Omarchy System** entry instead of collecting one per theme.
+
+If the app has never run, `~/.longbridge` does not exist yet and the installer skips this step; run Longbridge once, then run `./install.sh` again.
+
 ## Credits
 
 Based on [`huacnlee/zed-theme-macos-classic`](https://github.com/huacnlee/zed-theme-macos-classic) and the matching [VS Code theme](https://marketplace.visualstudio.com/items?itemName=huacnlee.theme-macos-classic).

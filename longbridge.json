@@ -1,0 +1,150 @@
+{
+  "$schema": "https://github.com/longbridge/gpui-component/raw/refs/heads/main/.theme-schema.json",
+  "name": "Omarchy System",
+  "author": "huacnlee",
+  "url": "https://github.com/huacnlee/omarchy-macos-classic-theme",
+  "themes": [
+    {
+      "name": "Omarchy System",
+      "mode": "dark",
+      "shadow": false,
+      "colors": {
+        "accent.background": "#1B1B1B",
+        "accent.foreground": "#CACCCA",
+        "background": "#131313",
+        "border": "#2A2A2A",
+        "ring": "#077CFD",
+        "foreground": "#DEDEDE",
+        "list.even.background": "#1B1B1B",
+        "list.active.background": "#077CFD22",
+        "list.active.border": "#077CFD",
+        "muted.background": "#1B1B1B",
+        "muted.foreground": "#9D9D9D",
+        "popover.background": "#0D0D0D",
+        "popover.foreground": "#CACCCA",
+        "primary.background": "#077CFD",
+        "primary.foreground": "#F2F9FF",
+        "switch.background": "#393939",
+        "switch.thumb.background": "#F2F9FF",
+        "scrollbar.background": "#13131300",
+        "scrollbar.thumb.background": "#9D9D9D",
+        "secondary.active.background": "#353535",
+        "secondary.background": "#353535",
+        "secondary.foreground": "#DEDEDE",
+        "secondary.hover.background": "#35353599",
+        "link": "#419CFF",
+        "tab_bar.background": "#080808",
+        "tab.active.background": "#131313",
+        "tab.foreground": "#8F8F8F",
+        "title_bar.background": "#0D0D0D",
+        "selection.background": "#3F638B",
+        "base.blue": "#419CFF",
+        "base.cyan": "#0AC2A2",
+        "base.green": "#30D158",
+        "base.magenta": "#A550A7",
+        "base.red": "#FF5257",
+        "base.yellow": "#CC9E00"
+      },
+      "highlight": {
+        "editor.foreground": "#CACCCA",
+        "editor.background": "#131313",
+        "editor.active_line.background": "#35343666",
+        "editor.line_number": "#8F8F8F",
+        "editor.active_line_number": "#DDDDDD",
+        "editor.invisible": "#007fff66",
+        "conflict": "#D2602D",
+        "created": "#3f72e2",
+        "created.background": "#0C4619",
+        "deleted.background": "#46190C",
+        "error.background": "#46190C",
+        "error.border": "#802207",
+        "hidden": "#9E9E9E",
+        "hint": "#b283f8",
+        "hint.background": "#250c4b",
+        "hint.border": "#3f0891",
+        "info.background": "#0059D1",
+        "info.border": "#0059D1",
+        "modified": "#B0A878",
+        "modified.background": "#3A310E",
+        "predictive": "#5D5945",
+        "success.background": "#0C4619",
+        "warning.background": "#3A310E",
+        "warning.border": "#7B6508",
+        "syntax": {
+          "attribute": {
+            "color": "#e7cb8f"
+          },
+          "boolean": {
+            "color": "#E1D797"
+          },
+          "comment": {
+            "color": "#9E9E9E"
+          },
+          "comment.doc": {
+            "color": "#9E9E9E"
+          },
+          "constant": {
+            "color": "#E1D797"
+          },
+          "constructor": {
+            "color": "#b5af9a"
+          },
+          "embedded": {
+            "color": "#CACCCA"
+          },
+          "function": {
+            "color": "#fdd888"
+          },
+          "keyword": {
+            "color": "#c28b12"
+          },
+          "link_text": {
+            "color": "#307BF6",
+            "font_style": "normal"
+          },
+          "link_uri": {
+            "color": "#7faef9",
+            "font_style": "italic"
+          },
+          "number": {
+            "color": "#E1D797"
+          },
+          "string": {
+            "color": "#62BA46"
+          },
+          "string.escape": {
+            "color": "#62BA46"
+          },
+          "string.regex": {
+            "color": "#62BA46"
+          },
+          "string.special": {
+            "color": "#E1D797"
+          },
+          "string.special.symbol": {
+            "color": "#E1D797"
+          },
+          "tag": {
+            "color": "#b5af9a"
+          },
+          "text.literal": {
+            "color": "#E1D797"
+          },
+          "title": {
+            "color": "#fdd888",
+            "font_weight": 600
+          },
+          "type": {
+            "color": "#c75828"
+          },
+          "property": {
+            "color": "#CACCCA"
+          },
+          "variable.special": {
+            "color": "#E19773"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -3,6 +3,7 @@ set -euo pipefail
 
 repo_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 destination=${HOME}/.config/omarchy/themes
+longbridge_destination=${HOME}/.longbridge/themes
 
 # The dark variant is the repository root, so `omarchy theme install <repo-url>`
 # installs it directly. Copy only the theme files -- the root also holds the
@@ -27,7 +28,7 @@ light_name=macos-classic-light
 activate=1
 
 usage() {
-  echo "Usage: ./install.sh [--destination DIR] [--no-activate]"
+  echo "Usage: ./install.sh [--destination DIR] [--longbridge-destination DIR] [--no-activate]"
 }
 
 while (($#)); do
@@ -39,6 +40,15 @@ while (($#)); do
         exit 2
       fi
       destination=$2
+      shift 2
+      ;;
+    --longbridge-destination)
+      if (($# < 2)); then
+        echo "Error: --longbridge-destination requires a directory." >&2
+        usage >&2
+        exit 2
+      fi
+      longbridge_destination=$2
       shift 2
       ;;
     --no-activate)
@@ -69,6 +79,18 @@ echo "Installed $dark_name"
 rm -rf -- "${destination:?}/$light_name"
 cp -R -- "$repo_dir/$light_name" "$destination/$light_name"
 echo "Installed $light_name"
+
+# Longbridge keeps user themes in ~/.longbridge/themes and hot-reloads them, so
+# the file lands under the name the app already has selected. The directory's
+# parent appears the first time the app runs; without it there is nothing to
+# theme, so leave the machine alone rather than create it.
+if [[ -d $(dirname -- "$longbridge_destination") ]]; then
+  mkdir -p -- "$longbridge_destination"
+  cp -- "$repo_dir/longbridge.json" "$longbridge_destination/omarchy.json"
+  echo "Installed the Longbridge theme to $longbridge_destination/omarchy.json"
+else
+  echo "Longbridge is not set up. Run it once, then re-run this installer to theme it."
+fi
 
 if fc-list : family 2>/dev/null | tr ',' '\n' | grep -Fxiq 'Monaco'; then
   echo "Monaco is available. Apply it with: omarchy font set Monaco"
