@@ -12,10 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 # repo straight into ~/.config/omarchy/themes/<name>, so it only ever sees one
 # theme, built from the files at the top level.
 #
-# There is no wallpaper artwork on purpose: the desktop is a single flat fill so
-# it disappears behind the windows the way the classic desktop did instead of
-# reading as a picture. The dark fill matches the source editor background;
-# the light fill remains one step below its palette surfaces.
+# Both variants ship a flat background rather than artwork, leaving wallpaper
+# choice to the user. Each fill sits below the theme's window surfaces.
 THEMES = {
     "macos-classic-light": {
         "directory": ROOT / "macos-classic-light",
@@ -23,7 +21,7 @@ THEMES = {
     },
     "macos-classic-dark": {
         "directory": ROOT,
-        "color": "#131313",
+        "color": "#080808",
     },
 }
 

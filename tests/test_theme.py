@@ -5,6 +5,7 @@ import re
 import shutil
 import struct
 import subprocess
+import sys
 import tempfile
 import tomllib
 import unittest
@@ -669,7 +670,7 @@ class AssetTests(unittest.TestCase):
     def test_assets_have_expected_png_dimensions(self):
         for name in VARIANTS:
             expected = {
-                theme_dir(name) /"backgrounds" / f"{name}.png": (1920, 1080),
+                theme_dir(name) / "backgrounds" / f"{name}.png": (1920, 1080),
                 theme_dir(name) /"unlock.png": (1920, 1080),
                 theme_dir(name) /"preview.png": (640, 360),
                 theme_dir(name) /"preview-unlock.png": (640, 360),
@@ -678,32 +679,69 @@ class AssetTests(unittest.TestCase):
                 with self.subTest(path=path):
                     self.assertEqual(dimensions, self.png_dimensions(path))
 
-    def test_wallpaper_is_a_flat_fill_with_no_artwork(self):
-        # There is no wallpaper image on purpose: every pixel is the same color,
-        # so the desktop is blank rather than a picture.
-        expected = {
-            "macos-classic-light": (216, 216, 216),
-            "macos-classic-dark": (19, 19, 19),
-        }
-        for name, fill in expected.items():
-            with self.subTest(name=name):
-                path = theme_dir(name) / "backgrounds" / f"{name}.png"
-                self.assertEqual(fill, self.png_corner_rgb(path))
-                self.assertEqual(fill, self.png_corner_rgb(path, bottom=True))
-                self.assertEqual({fill}, set(self.png_pixels(path)))
+    def test_dark_theme_uses_a_flat_080808_background(self):
+        backgrounds = theme_dir("macos-classic-dark") / "backgrounds"
+        self.assertEqual(
+            ["macos-classic-dark.png"],
+            sorted(path.name for path in backgrounds.iterdir()),
+        )
+        path = backgrounds / "macos-classic-dark.png"
+        fill = (8, 8, 8)
+        self.assertEqual(fill, self.png_corner_rgb(path))
+        self.assertEqual(fill, self.png_corner_rgb(path, bottom=True))
+        self.assertEqual({fill}, set(self.png_pixels(path)))
 
-    def test_dark_assets_use_the_source_editor_background(self):
+    def test_light_wallpaper_remains_a_flat_fill(self):
+        path = theme_dir("macos-classic-light") / "backgrounds/macos-classic-light.png"
+        fill = (216, 216, 216)
+        self.assertEqual(fill, self.png_corner_rgb(path))
+        self.assertEqual(fill, self.png_corner_rgb(path, bottom=True))
+        self.assertEqual({fill}, set(self.png_pixels(path)))
+
+    def test_dark_login_assets_use_the_flat_080808_background(self):
         theme = theme_dir("macos-classic-dark")
         paths = (
-            theme / "backgrounds/macos-classic-dark.png",
             theme / "unlock.png",
             theme / "preview.png",
             theme / "preview-unlock.png",
         )
         for path in paths:
             with self.subTest(path=path):
-                self.assertEqual((19, 19, 19), self.png_corner_rgb(path))
-                self.assertEqual((19, 19, 19), self.png_corner_rgb(path, bottom=True))
+                self.assertEqual({(8, 8, 8)}, set(self.png_pixels(path)))
+
+    def test_committed_assets_match_the_generator_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            generated_root = Path(temporary)
+            generated_script = generated_root / "scripts/generate_assets.py"
+            generated_script.parent.mkdir()
+            shutil.copy(ROOT / "scripts/generate_assets.py", generated_script)
+
+            result = subprocess.run(
+                [sys.executable, generated_script],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+
+            for name in VARIANTS:
+                generated_theme = (
+                    generated_root / "macos-classic-light"
+                    if name == "macos-classic-light"
+                    else generated_root
+                )
+                relative_paths = [
+                    Path("backgrounds") / f"{name}.png",
+                    Path("unlock.png"),
+                    Path("preview-unlock.png"),
+                ]
+                if name == "macos-classic-dark":
+                    relative_paths.append(Path("preview.png"))
+                for relative_path in relative_paths:
+                    with self.subTest(name=name, path=relative_path):
+                        self.assertEqual(
+                            (theme_dir(name) / relative_path).read_bytes(),
+                            (generated_theme / relative_path).read_bytes(),
+                        )
 
     def test_light_wallpaper_sits_below_every_palette_surface(self):
         # The desktop is darker than the editor background so windows read as
